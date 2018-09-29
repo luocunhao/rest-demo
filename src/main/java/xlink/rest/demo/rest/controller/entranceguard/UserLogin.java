@@ -11,10 +11,8 @@ import org.restexpress.Request;
 import org.restexpress.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import xlink.rest.demo.rest.EntranceGuardConfig;
-import xlink.rest.demo.rest.InitParam;
-import xlink.rest.demo.rest.OperationMode;
-import xlink.rest.demo.rest.RestController;
+import xlink.rest.demo.rest.*;
+import xlink.rest.demo.rest.exception.Rest503StatusException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +26,7 @@ public class UserLogin extends RestController {
 
 
     protected Object post(Request request, Response response) throws Exception{
+        JSONObject json = new JSONObject();
         XlinkIot xlinkIotClient = EntranceGuardConfig.getXlinkIotClient();
 
         // 1. 创建一个publish实例
@@ -38,6 +37,7 @@ public class UserLogin extends RestController {
         XlinkIotPublishModel publishModel = new XlinkIotPublishModel();
         publishModel.setAppId(InitParam.appId);
         publishModel.setServiceId(serviceId);
+        publishModel.setMessageId(1);
         publishModel.setObjectName(objectName);
         publishModel.setOperation(OperationMode.getOperationMode(queryParam));
         // 可选，设置产品ID，由服务端提供，用于关联物联平台的相关信息
@@ -63,15 +63,14 @@ public class UserLogin extends RestController {
             future = xlinkIotPublish.publishToXlinkIotAsync(publishModel);
             XlinkIotPublishResult result = future.get();
             logger.debug("result code: " + result.getCode() + " errorMsg: " + result.getErrorMessage());
-            if(result.getCode()!=200){
-                JSONObject json = new JSONObject();
-                json.put("error",result.getErrorMessage());
-                return json;
+            int resultcode = result.getCode();
+
+            json.put("code", resultcode);
+            json.put("msg", result.getErrorMessage());
+            if(resultcode!=200) {
+                throw new Rest503StatusException(ERROR_CODE.SERVICE_EXCEPTION,result.getErrorMessage());
             }
         }
-        // response的结果
-        JSONObject json = new JSONObject();
-        json.put("code:", 200);
         return json;
     }
 }

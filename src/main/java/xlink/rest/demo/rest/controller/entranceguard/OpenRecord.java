@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import xlink.rest.demo.rest.*;
 import xlink.rest.demo.rest.exception.Rest400StatusException;
+import xlink.rest.demo.rest.exception.Rest503StatusException;
 import xlink.rest.demo.utils.CalendarTools;
 
 import java.util.Date;
@@ -75,8 +76,12 @@ public class OpenRecord extends RestController {
             XlinkIotPublishResultFuture future = xlinkIotPublish.publishToXlinkIotAsync(publishModel);
             XlinkIotPublishResult result = future.get();
             int resultcode = result.getCode();
-            json.put("code", resultcode);
-            json.put("msg", result.getErrorMessage());
+
+                json.put("code", resultcode);
+                json.put("msg", result.getErrorMessage());
+           if(resultcode!=200) {
+                throw new Rest503StatusException(ERROR_CODE.SERVICE_EXCEPTION,result.getErrorMessage());
+            }
             logger.debug("result code: " + resultcode + " errorMsg: " + result.getErrorMessage());
         }
         // response的结果

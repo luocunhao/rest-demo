@@ -13,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import xlink.rest.demo.rest.*;
 import xlink.rest.demo.rest.exception.Rest400StatusException;
+import xlink.rest.demo.rest.exception.Rest503StatusException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,6 +27,7 @@ public class DoorInitialize extends RestController {
 
 
     protected Object post(Request request, Response response) throws Exception{
+        JSONObject json = new JSONObject();
         XlinkIot xlinkIotClient = EntranceGuardConfig.getXlinkIotClient();
 
         // 1. 创建一个publish实例
@@ -36,6 +38,7 @@ public class DoorInitialize extends RestController {
         XlinkIotPublishModel publishModel = new XlinkIotPublishModel();
         publishModel.setAppId(InitParam.appId);
         publishModel.setServiceId(serviceId);
+        publishModel.setMessageId(1);
         publishModel.setObjectName(objectName);
         publishModel.setOperation(OperationMode.getOperationMode(queryParam));
         // 可选，设置产品ID，由服务端提供，用于关联物联平台的相关信息
@@ -57,8 +60,8 @@ public class DoorInitialize extends RestController {
             }
             Map<String,Object> map=new HashMap<>();
             map.put("id",jsonObject.getString("id"));
-            map.put("online_status",jsonObject.getString("name"));
-            map.put("open_status",jsonObject.getString("device_type"));
+            map.put("name",jsonObject.getString("name"));
+            map.put("device_type",jsonObject.getString("device_type"));
             map.put("open_mode",jsonObject.getString("open_mode"));
 
             publishModel.setData(map);
@@ -67,11 +70,13 @@ public class DoorInitialize extends RestController {
             XlinkIotPublishResultFuture future = xlinkIotPublish.publishToXlinkIotAsync(publishModel);
             XlinkIotPublishResult result = future.get();
             logger.debug("result code: " + result.getCode() + " errorMsg: " + result.getErrorMessage());
-
+            int resultcode = result.getCode();
+            json.put("code", resultcode);
+            json.put("msg", result.getErrorMessage());
+            if(resultcode!=200) {
+                throw new Rest503StatusException(ERROR_CODE.SERVICE_EXCEPTION,result.getErrorMessage());
+            }
         }
-        // response的结果
-        JSONObject json = new JSONObject();
-        json.put("code:", 200);
         return json;
     }
 }
