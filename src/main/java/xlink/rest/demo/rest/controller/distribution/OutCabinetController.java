@@ -1,0 +1,123 @@
+package xlink.rest.demo.rest.controller.distribution;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import org.restexpress.Request;
+import org.restexpress.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+
+import cn.xlink.iot.sdk.XlinkIot;
+import cn.xlink.iot.sdk.datastruct.XlinkIotPublishModel;
+import cn.xlink.iot.sdk.datastruct.XlinkIotPublishResult;
+import cn.xlink.iot.sdk.future.iotPublishFuture.XlinkIotPublishResultFuture;
+import cn.xlink.iot.sdk.operator.XlinkIotPublish;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import xlink.rest.demo.rest.ERROR_CODE;
+import xlink.rest.demo.rest.InitParam;
+import xlink.rest.demo.rest.OperationMode;
+import xlink.rest.demo.rest.RestController;
+import xlink.rest.demo.rest.config.ConfigData;
+import xlink.rest.demo.rest.exception.Rest400StatusException;
+
+public class OutCabinetController extends RestController {
+
+	private static final Logger logger = LoggerFactory.getLogger(OutCabinetController.class);
+
+	static String serviceId = "power_distribution_system";
+	static String objectName = "h_voltage_out_cabinet";
+	// static String productId = "1607d2b6099900011607d2b609990001";
+	static String productId = ConfigData.DISTRIBUTION_PRODUCT_ID;
+	/*
+	 * private String msg = null; private Integer code = null;
+	 */
+
+	@Override
+	protected Object post(Request request, Response response) throws Exception {
+
+		XlinkIot xlinkIotClient = InitParam.getXlinkIotClient();
+
+		// 1. 创建一个publish实例
+		XlinkIotPublish xlinkIotPublish = new XlinkIotPublish(xlinkIotClient);
+
+		// 获取参数
+		String queryParam = getQueryParam(request, "action");
+
+		XlinkIotPublishModel publishModel = new XlinkIotPublishModel();
+		publishModel.setAppId(InitParam.appId);
+		publishModel.setServiceId(serviceId);
+		publishModel.setObjectName(objectName);
+		publishModel.setOperation(OperationMode.getOperationMode(queryParam));
+		// 可选，设置产品ID，由服务端提供，用于关联物联平台的相关信息
+		publishModel.setProductId(productId);
+
+		/*
+		 * // response的结果 JSONObject json = new JSONObject();
+		 */
+		// 解析数据
+		JSONArray jsonArray = getJsonArray(request);
+		for (int index = 0, size = jsonArray.size(); index < size; index++) {
+
+			JSONObject jsonObj = jsonArray.getJSONObject(index);
+			// 获取id
+			String id = jsonObj.getString("id");
+			if (id == null || "".equals(id)) {
+				throw new Rest400StatusException(ERROR_CODE.ID_MUST_NOT_NULL, "device identification can not be empty");
+			}
+			// 获取在线状态
+			Integer online_status = jsonObj.getInteger("online_status");
+			// 高压出线柜设备名称
+			String device_name = jsonObj.getString("device_name");
+			// 高压出线柜_电流
+			Float device_electric = jsonObj.getFloat("device_electric");
+			// 高压出线柜_电压
+			Float device_volatge = jsonObj.getFloat("device_volatge");
+			// 高压出线柜_有功功率
+			Float device_active_power = jsonObj.getFloat("device_active_power");
+			// 高压出线柜_无功功率
+			Float device_reactive_power = jsonObj.getFloat("device_reactive_power");
+			// 高压出线柜_视在功率
+			Float device_apparent_power = jsonObj.getFloat("device_apparent_power");
+			// 高压出线柜_功率因数
+			Float device_power_factor = jsonObj.getFloat("device_power_factor");
+			// 高压出线柜_断路器开关
+			Integer device_killer_switch = jsonObj.getInteger("device_killer_switch");
+			// 更新数据时间
+			String date = jsonObj.getString("date");
+			// 2. 构建publish数据
+			// 具体上报的数字
+			Map<String, Object> data = new HashMap<String, Object>();
+			data.put("id", id);
+			data.put("online_status", online_status);
+			data.put("device_name", device_name);
+			data.put("device_electric", device_electric);
+			data.put("device_volatge", device_volatge);
+			data.put("device_active_power", device_active_power);
+			data.put("device_reactive_power", device_reactive_power);
+			data.put("device_apparent_power", device_apparent_power);
+			data.put("device_power_factor", device_power_factor);
+			data.put("device_killer_switch", device_killer_switch);
+			data.put("date", date);
+			publishModel.setData(data);
+
+			// 上报数据
+			XlinkIotPublishResultFuture future = xlinkIotPublish.publishToXlinkIotAsync(publishModel);
+			XlinkIotPublishResult result = future.get();
+			logger.debug("result code: " + result.getCode() + " errorMsg: " + result.getErrorMessage());
+			/*
+			 * msg = result.getErrorMessage(); code = result.getCode(); json.put("id=" + id
+			 * + " result", "code:" + code + ",msg:" + msg);
+			 */
+		}
+
+		// response的结果
+		JSONObject json = new JSONObject();
+		json.put("code:", 200);
+		return json;
+	}
+
+}
